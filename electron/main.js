@@ -245,22 +245,37 @@ function setupAPIRoutes() {
   // Get summary
   expressApp.get('/api/summary', async (req, res) => {
     try {
-      const stats = await new Promise((resolve) => {
-        expressApp.handle({
-          method: 'GET',
-          url: '/api/stats'
-        }, {
-          json: (data) => resolve(data),
-          status: () => ({ json: (data) => resolve(data) })
-        });
-      });
+      const selectedFolder = path.join(currentConfig.destinationFolder, 'selected');
+      const doubtfulFolder = path.join(currentConfig.destinationFolder, 'doubtful');
+      const rejectedFolder = path.join(currentConfig.destinationFolder, 'rejected');
+
+      let selected = 0, doubtful = 0, rejected = 0;
+
+      try {
+        const selectedFiles = await fs.readdir(selectedFolder);
+        selected = selectedFiles.length;
+      } catch (err) { }
+
+      try {
+        const doubtfulFiles = await fs.readdir(doubtfulFolder);
+        doubtful = doubtfulFiles.length;
+      } catch (err) { }
+
+      try {
+        const rejectedFiles = await fs.readdir(rejectedFolder);
+        rejected = rejectedFiles.length;
+      } catch (err) { }
+
+      const processed = selected + doubtful + rejected;
 
       res.json({
-        totalProcessed: stats.processed,
-        selected: stats.selected,
-        doubtful: stats.doubtful,
-        rejected: stats.rejected,
-        skipped: stats.processed - (stats.selected + stats.doubtful + stats.rejected)
+        totalProcessed: processed,
+        selected,
+        doubtful,
+        rejected,
+        skipped: processed - (selected + doubtful + rejected),
+        sourceFolder: currentConfig.sourceFolder,
+        destinationFolder: currentConfig.destinationFolder
       });
     } catch (error) {
       console.error('Summary error:', error);
