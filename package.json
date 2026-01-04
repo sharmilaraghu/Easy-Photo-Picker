@@ -1,6 +1,8 @@
 {
   "name": "easy-photo-picker",
   "version": "1.0.0",
+  "description": "A beautiful photo selection and organization tool",
+  "author": "Sharmila",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -10,8 +12,35 @@
     "electron:dev": "concurrently \"npm run dev:server\" \"vite\" \"wait-on http://localhost:3000 && electron .\"",
     "start": "npm run electron:dev",
     "build": "vite build",
+    "build:mac": "npm run build && electron-builder --mac --dir",
+    "dist:mac": "npm run build && electron-builder --mac",
     "preview": "vite preview",
     "clean": "lsof -ti:3000,3001 | xargs kill -9 2>/dev/null || true"
+  },
+  "build": {
+    "appId": "com.sharmila.easyphotopicker",
+    "productName": "Easy Photo Picker",
+    "directories": {
+      "output": "installable"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "server/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.photography",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "Easy Photo Picker ${version}"
+    }
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -30,6 +59,7 @@
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.2",
     "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
     "wait-on": "^7.2.0"
   }
 }

@@ -17,6 +17,7 @@ function ImagePicker({ config, onReset }) {
   const [finished, setFinished] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
+  const [summary, setSummary] = useState(null);
 
   const loadCurrentImage = async () => {
     setLoading(true);
@@ -30,6 +31,7 @@ function ImagePicker({ config, onReset }) {
         setFinished(true);
         setLoading(false);
         await loadStats();
+        await loadSummary();
         return;
       }
 
@@ -56,6 +58,16 @@ function ImagePicker({ config, onReset }) {
       });
     } catch (err) {
       console.error('Failed to load stats:', err);
+    }
+  };
+
+  const loadSummary = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/summary');
+      const data = await response.json();
+      setSummary(data);
+    } catch (err) {
+      console.error('Failed to load summary:', err);
     }
   };
 
@@ -164,12 +176,22 @@ function ImagePicker({ config, onReset }) {
   if (finished) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl text-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-3xl text-center">
           <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">All Done!</h2>
-          <p className="text-gray-600 mb-8">You've processed all {stats.total} images</p>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">All Done!</h2>
+          <p className="text-gray-600 mb-6">You've processed all {stats.total} images from this session</p>
           
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* Session Summary */}
+          <div className="bg-blue-50 p-4 rounded-lg mb-6 text-left">
+            <h3 className="font-semibold text-blue-900 mb-2">📂 Session Details</h3>
+            <div className="text-sm text-blue-800 space-y-1">
+              <div className="truncate"><strong>Source:</strong> {summary?.sourceFolder || config.sourceFolder}</div>
+              <div className="truncate"><strong>Destination:</strong> {summary?.destinationFolder || config.destinationFolder}</div>
+            </div>
+          </div>
+
+          {/* Category Breakdown */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="bg-green-50 p-6 rounded-lg">
               <div className="text-3xl font-bold text-green-600">{stats.selected}</div>
               <div className="text-green-700">Selected</div>
@@ -183,6 +205,27 @@ function ImagePicker({ config, onReset }) {
               <div className="text-red-700">Rejected</div>
             </div>
           </div>
+
+          {/* Validation Summary */}
+          {summary && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+              <h3 className="font-semibold text-gray-900 mb-3">✅ Copy Validation</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-white p-3 rounded">
+                  <div className="text-2xl font-bold text-blue-600">{summary.newFilesCopied}</div>
+                  <div className="text-gray-600">New Files Copied</div>
+                </div>
+                <div className="bg-white p-3 rounded">
+                  <div className="text-2xl font-bold text-yellow-600">{summary.existingFilesSkipped}</div>
+                  <div className="text-gray-600">Duplicates Skipped</div>
+                </div>
+                <div className="bg-white p-3 rounded col-span-2">
+                  <div className="text-2xl font-bold text-purple-600">{summary.totalInDestination}</div>
+                  <div className="text-gray-600">Total Files in Destination Folders</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <button
             onClick={onReset}

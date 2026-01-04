@@ -138,15 +138,31 @@ app.post('/api/process-image', async (req, res) => {
     
     const targetPath = path.join(targetFolder, currentImage);
 
-    // Copy file to target folder
-    await fs.copyFile(sourcePath, targetPath);
+    // Check if file already exists
+    let wasExisting = false;
+    let fileSkipped = false;
+    try {
+      await fs.access(targetPath);
+      wasExisting = true;
+      // File exists - we'll skip copying or overwrite based on preference
+      fileSkipped = true; // Skip to avoid overwriting
+    } catch {
+      // File doesn't exist, proceed with copy
+    }
+
+    // Copy file to target folder if not skipped
+    if (!fileSkipped) {
+      await fs.copyFile(sourcePath, targetPath);
+    }
 
     // Track this action for undo
     currentConfig.history.push({
       filename: currentImage,
       action: action,
       index: currentConfig.currentIndex,
-      targetPath: targetPath
+      targetPath: targetPath,
+      wasExisting: wasExisting,
+      skipped: fileSkipped
     });
 
     // Move to next image
@@ -156,6 +172,8 @@ app.post('/api/process-image', async (req, res) => {
       success: true,
       action,
       filename: currentImage,
+      wasExisting,
+      skipped: fileSkipped,
       remaining: currentConfig.images.length - currentConfig.currentIndex
     });
   } catch (error) {
@@ -192,6 +210,41 @@ app.post('/api/undo', async (req, res) => {
     });
   } catch (error) {
     console.error('Undo error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get detailed summary
+app.get('/api/summary', async (req, res) => {
+  try {
+    const selectedFolder = path.join(currentConfig.destinationFolder, 'selected');
+    const doubtfulFolder = path.join(currentConfig.destinationFolder, 'doubtful');
+    const rejectedFolder = path.join(currentConfig.destinationFolder, 'rejected');
+    
+    const selectedFiles = await fs.readdir(selectedFolder).catch(() => []);
+    const doubtfulFiles = await fs.readdir(doubtfulFolder).catch(() => []);
+    const rejectedFiles = await fs.readdir(rejectedFolder).catch(() => []);
+
+    // Count new vs existing from history
+    const newFiles = currentConfig.history.filter(h => !h.wasExisting && !h.skipped).length;
+    const existingFiles = currentConfig.history.filter(h => h.wasExisting).length;
+    const skippedFiles = currentConfig.history.filter(h => h.skipped).length;
+
+    res.json({
+      sourceFolder: currentConfig.sourceFolder,
+      destinationFolder: currentConfig.destinationFolder,
+      total: currentConfig.images.length,
+      processed: currentConfig.currentIndex,
+      selected: selectedFiles.length,
+      doubtful: doubtfulFiles.length,
+      rejected: rejectedFiles.length,
+      remaining: currentConfig.images.length - currentConfig.currentIndex,
+      newFilesCopied: newFiles,
+      existingFilesSkipped: skippedFiles,
+      totalInDestination: selectedFiles.length + doubtfulFiles.length + rejectedFiles.length
+    });
+  } catch (error) {
+    console.error('Summary error:', error);
     res.status(500).json({ error: error.message });
   }
 });
