@@ -23,7 +23,12 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // In production, dist is at the app root level
+    const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+    console.log('Loading file from:', indexPath);
+    mainWindow.loadFile(indexPath);
+    // Open dev tools to see any errors
+    mainWindow.webContents.openDevTools();
   }
 }
 
